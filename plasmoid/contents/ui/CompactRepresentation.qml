@@ -27,7 +27,7 @@ Item {
 
     Image {
         id: compactIcon;
-        source: "../../images/icon";
+        source: "../../images/icon.png";
         fillMode: Image.PreserveAspectFit;
         anchors.fill: parent;
         height: parent.height;
@@ -38,7 +38,7 @@ Item {
         id: mouseArea;
         anchors.fill: parent;
         onClicked: {
-            plasmoid.expanded = !plasmoid.expanded;
+            main.expanded = !main.expanded;
         }
         hoverEnabled: true;
     }

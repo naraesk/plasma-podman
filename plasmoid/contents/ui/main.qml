@@ -23,6 +23,7 @@ import org.kde.plasma.plasmoid
 
 
 PlasmoidItem {
+    id: main
     compactRepresentation: CompactRepresentation {}
     fullRepresentation: FullRepresentation{}
 }
