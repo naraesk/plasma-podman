@@ -1,117 +1,112 @@
 /*
  * Copyright (C) 2020 by David Baum <david.baum@naraesk.eu>
  *
- * This file is part of plasma-docker.
+ * This file is part of plasma-podman.
  *
- * plasma-docker is free software: you can redistribute it and/or modify
+ * plasma-podman is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * plasma-docker is distributed in the hope that it will be useful,
+ * plasma-podman is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with plasma-docker.  If not, see <http://www.gnu.org/licenses/>.
+ * along with plasma-podman.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.12;
-import QtQuick.Controls 2.12;
-import QtQuick.Dialogs 1.3;
-import QtQuick.Extras 1.4;
-import QtQuick.Layouts 1.12;
-import eu.naraesk.docker.process 1.2;
-import org.kde.plasma.core 2.0 as PlasmaCore;
+import QtQuick;
+import QtQuick.Controls;
+import QtQuick.Layouts;
+import eu.naraesk.podman.process 1.2;
+import org.kde.kirigami as Kirigami;
 import "service.js" as Service;
 
-Component {
-    id: listdelegate;
+RowLayout {
+    id: serviceRow;
+    visible: aVisible;
+    property bool online: model.online;
+    Layout.leftMargin: 20;
+    Layout.fillWidth: true;
+    spacing: 0;
 
-    RowLayout {
-        id: serviceRow;
-        visible: aVisible;
-        property bool online: model.online;
-        Layout.leftMargin: 20;
-        Layout.fillWidth: true;
-        spacing: 0;
+    onVisibleChanged: {
+        height = Service.getHeight(visible, text.height);
+    }
 
-        onVisibleChanged: {
-            height = Service.getHeight(visible, text.height);
-        }
+    onOnlineChanged: {
+        statusIndicator.active = online;
+    }
 
-        onOnlineChanged: {
-            statusIndicator.on = online;
-        }
+    Behavior on height {
+        NumberAnimation { duration: 100; }
+    }
 
-        Behavior on height {
-            NumberAnimation { duration: 100; }
-        }
+    Rectangle {
+        id: spacer;
+        width: Kirigami.Units.largeSpacing * 3;
+    }
 
-        Rectangle {
-            id: spacer;
-            width: units.largeSpacing * 3;
-        }
-
-        MouseArea {
-            id: statusButton;
-            height: 15;
-            width: 15;
-            onClicked: {
-                statusIndicator.on = !statusIndicator.on;
-                Service.startAndStopService(statusIndicator.on, model.file, model.name);
-            }
-
-            StatusIndicator {
-                id: statusIndicator;
-                anchors.fill: parent;
-                color: "green";
-                on: online;
-            }
+    MouseArea {
+        id: statusButton;
+        height: 15;
+        width: 15;
+        onClicked: {
+            statusIndicator.active = !statusIndicator.active;
+            Service.startAndStopService(statusIndicator.active, model.file, model.name);
         }
 
         Rectangle {
-            id: spacer2;
-            width: units.smallSpacing;
+            id: statusIndicator;
+            property bool active: online;
+            anchors.fill: parent;
+            radius: width / 2;
+            color: active ? "green" : "gray";
         }
+    }
 
-        Label {
-            Layout.topMargin: units.smallSpacing;
-            Layout.bottomMargin: units.smallSpacing;
-            id: text;
-            text: name;
-        }
+    Rectangle {
+        id: spacer2;
+        width: Kirigami.Units.smallSpacing;
+    }
 
-        Rectangle {
-            id: spacer3;
-            width: units.largeSpacing;
-        }
+    Label {
+        Layout.topMargin: Kirigami.Units.smallSpacing;
+        Layout.bottomMargin: Kirigami.Units.smallSpacing;
+        id: text;
+        text: name;
+    }
 
-        ToolButton {
-            id: execButton;
-            icon.name: "bash";
-            icon.width: units.iconSizes.small;
-            icon.height: units.iconSizes.small;
-            ToolTip.text: qsTr("Run shell");
-            ToolTip.visible: hovered;
-            visible: model.online;
-            onClicked: serviceProcess.runShell(model.file, model.name);
-        }
+    Rectangle {
+        id: spacer3;
+        width: Kirigami.Units.largeSpacing;
+    }
 
-        ToolButton {
-            id: browserButton;
-            icon.name: "browser";
-            icon.width: units.iconSizes.small;
-            icon.height: units.iconSizes.small;
-            ToolTip.text: qsTr("Open in browser");
-            ToolTip.visible: hovered;
-            visible: model.online && model.port;
-            onClicked: serviceProcess.startBrowser(model.file, model.name);
-        }
+    ToolButton {
+        id: execButton;
+        icon.name: "bash";
+        icon.width: Kirigami.Units.iconSizes.small;
+        icon.height: Kirigami.Units.iconSizes.small;
+        ToolTip.text: qsTr("Run shell");
+        ToolTip.visible: hovered;
+        visible: model.online;
+        onClicked: serviceProcess.runShell(model.file, model.name);
+    }
 
-        Process {
-            id: serviceProcess;
-        }
+    ToolButton {
+        id: browserButton;
+        icon.name: "browser";
+        icon.width: Kirigami.Units.iconSizes.small;
+        icon.height: Kirigami.Units.iconSizes.small;
+        ToolTip.text: qsTr("Open in browser");
+        ToolTip.visible: hovered;
+        visible: model.online && model.port;
+        onClicked: serviceProcess.startBrowser(model.file, model.name);
+    }
+
+    Process {
+        id: serviceProcess;
     }
 }

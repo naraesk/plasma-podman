@@ -1,27 +1,28 @@
 /*
  * Copyright (C) 2020 by David Baum <david.baum@naraesk.eu>
  *
- * This file is part of plasma-docker.
+ * This file is part of plasma-podman.
  *
- * plasma-docker is free software: you can redistribute it and/or modify
+ * plasma-podman is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * plasma-docker is distributed in the hope that it will be useful,
+ * plasma-podman is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with plasma-docker.  If not, see <http://www.gnu.org/licenses/>.
+ * along with plasma-podman.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.12;
-import QtQuick.Layouts 1.12;
-import QtQuick.Controls 2.12;
-import eu.naraesk.docker.process 1.2;
-import org.kde.plasma.plasmoid 2.0;
+import QtQuick;
+import QtQuick.Layouts;
+import QtQuick.Controls;
+import eu.naraesk.podman.process 1.2;
+import org.kde.plasma.plasmoid;
+import org.kde.kirigami as Kirigami;
 import "model.js" as Model;
 import "Service"
 import "Stack"
@@ -30,7 +31,7 @@ Item {
     id: root;
     Layout.minimumWidth: 170;
     Layout.minimumHeight: 100;
-    height: units.gridSize * 4;
+    height: Kirigami.Units.gridUnit * 4;
 
     Component.onCompleted: {
         Model.loadServices();
@@ -38,7 +39,7 @@ Item {
 
     Connections {
         target: plasmoid.configuration;
-        onContainerChanged: Model.loadServices();
+        function onContainerChanged() { Model.loadServices(); }
     }
 
     Process {
@@ -55,7 +56,7 @@ Item {
         anchors.fill: root;
         anchors.top: root.top;
         model: serviceModel;
-        spacing: units.smallSpacing;
+        spacing: Kirigami.Units.smallSpacing;
         delegate: ServiceDelegate {}
         section.property: 'stack';
         section.delegate: StackDelegate {}
@@ -66,7 +67,7 @@ Item {
         anchors.fill: parent;
         horizontalAlignment: Text.AlignHCenter;
         verticalAlignment: Text.AlignVCenter;
-        text: qsTr("Open the configuration menu to add docker-compose.yml files");
+        text: qsTr("Open the configuration menu to add compose files");
         wrapMode: Label.WordWrap;
         visible: serviceModel.count === 0;
     }

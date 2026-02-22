@@ -1,120 +1,118 @@
 /*
  * Copyright (C) 2020 by David Baum <david.baum@naraesk.eu>
  *
- * This file is part of plasma-docker.
+ * This file is part of plasma-podman.
  *
- * plasma-docker is free software: you can redistribute it and/or modify
+ * plasma-podman is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * plasma-docker is distributed in the hope that it will be useful,
+ * plasma-podman is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with plasma-docker.  If not, see <http://www.gnu.org/licenses/>.
+ * along with plasma-podman.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import QtQuick 2.12;
-import QtQuick.Controls 2.12;
-import QtQuick.Dialogs 1.3;
-import QtQuick.Extras 1.4;
-import QtQuick.Layouts 1.12;
-import eu.naraesk.docker.process 1.2;
-import org.kde.plasma.core 2.0 as PlasmaCore;
+import QtQuick;
+import QtQuick.Controls;
+import QtQuick.Layouts;
+import eu.naraesk.podman.process 1.2;
+import org.kde.kirigami as Kirigami;
 import "stack.js" as Stack;
 
-Component {
-    id: stack;
+RowLayout {
+    id: stackRow;
+    height: stackName.height;
+    property string composeFile: "";
+    property bool isExpanded: false;
 
-    RowLayout {        
-        id: stackRow;
-        height: stackName.height;
-        property string composeFile: "";
-        property bool isExpanded: false;
+    Component.onCompleted: {
+        composeFile = Stack.getComposeFile(section);
+        isExpanded = true;
+        statusIndicator.active = Stack.checkStatus(section);
+    }
 
-        Component.onCompleted: {
-            composeFile = Stack.getComposeFile(section);
-            isExpanded = true;
-            statusIndicator.on = Stack.checkStatus(section);
+    onIsExpandedChanged: {
+        Stack.updateVisibility(section, stackRow.isExpanded);
+        Stack.updateIcon(expandButton, stackRow.isExpanded);
+    }
+
+    ToolButton {
+        id: expandButton;
+        flat: true;
+        icon.name: "list-add";
+        onClicked: {
+            stackRow.isExpanded = !stackRow.isExpanded;
+        }
+    }
+
+    MouseArea {
+        height: 15;
+        width: 15;
+        onClicked: {
+            statusIndicator.active = !statusIndicator.active;
+            Stack.startAndStopStack(statusIndicator.active, composeFile);
         }
 
-        onIsExpandedChanged: {
-            Stack.updateVisibility(section, stackRow.isExpanded);
-            Stack.updateIcon(expandButton, stackRow.isExpanded);
+        Rectangle {
+            id: statusIndicator;
+            property bool active: false;
+            anchors.fill: parent;
+            radius: width / 2;
+            color: active ? "green" : "gray";
         }
+    }
 
-        ToolButton {
-            id: expandButton;
-            flat: true;
-            icon.name: "list-add";
-            onClicked: {
-                stackRow.isExpanded = !stackRow.isExpanded;
-            }
+    Kirigami.Icon {
+        id: item;
+        source: "stack";
+        implicitWidth: Kirigami.Units.iconSizes.small;
+        implicitHeight: Kirigami.Units.iconSizes.small;
+    }
+
+    Label {
+        id: stackName;
+        text: section;
+        Layout.fillWidth: true;
+        font.pixelSize: 22;
+    }
+
+    ToolButton {
+        id: logButton;
+        icon.name: "text-plain";
+        icon.width: Kirigami.Units.iconSizes.small;
+        icon.height: Kirigami.Units.iconSizes.small;
+        ToolTip.text: qsTr("Show log");
+        ToolTip.visible: hovered;
+        onClicked: stackProcess.showLog(composeFile);
+    }
+
+    ToolButton {
+        id: editButton;
+        icon.name: "edit";
+        icon.width: Kirigami.Units.iconSizes.small;
+        icon.height: Kirigami.Units.iconSizes.small;
+        ToolTip.text: qsTr("Edit file");
+        ToolTip.visible: hovered;
+        onClicked: stackProcess.editFile(composeFile);
+    }
+
+    Timer {
+        interval: 1000 * 30;
+        repeat: true;
+        triggeredOnStart: true;
+        running: true;
+        onTriggered: {
+            Stack.updateSection(composeFile);
+            statusIndicator.active = Stack.checkStatus(section);
         }
+    }
 
-        MouseArea {
-            height: 15;
-            width: 15;
-            onClicked: {
-                statusIndicator.on = !statusIndicator.on;
-                Stack.startAndStopStack(statusIndicator.on, composeFile);
-            }
-
-            StatusIndicator {
-                id: statusIndicator;
-                anchors.fill: parent;
-                color: "green";
-            }
-        }
-
-        PlasmaCore.IconItem {
-            id: item;
-            source: "stack";
-        }
-
-        Label {
-            id: stackName;
-            text: section;
-            Layout.fillWidth: true;
-            font.pixelSize: 22;
-        }
-
-        ToolButton {
-            id: logButton;
-            icon.name: "text-plain";
-            icon.width: units.iconSizes.small;
-            icon.height: units.iconSizes.small;
-            ToolTip.text: qsTr("Show log");
-            ToolTip.visible: hovered;
-            onClicked: stackProcess.showLog(composeFile);
-        }
-
-        ToolButton {
-            id: editButton;
-            icon.name: "edit";
-            icon.width: units.iconSizes.small;
-            icon.height: units.iconSizes.small;
-            ToolTip.text: qsTr("Edit file");
-            ToolTip.visible: hovered;
-            onClicked: stackProcess.editFile(composeFile);
-        }
-
-        Timer {
-            interval: 1000 * 30;
-            repeat: true;
-            triggeredOnStart: true;
-            running: true;
-            onTriggered: {
-                Stack.updateSection(composeFile);
-                statusIndicator.on = Stack.checkStatus(section);
-            }
-        }
-
-        Process {
-            id: stackProcess;
-        }
+    Process {
+        id: stackProcess;
     }
 }

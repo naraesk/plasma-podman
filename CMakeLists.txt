@@ -1,26 +1,22 @@
-# Set minimum CMake version (required for CMake 3.0 or later)
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.16)
 
-project(docker-control)
+project(podman-control)
 
 # Use Extra CMake Modules (ECM) for common functionality.
-# See http://api.kde.org/ecm/manual/ecm.7.html
-# and http://api.kde.org/ecm/manual/ecm-kde-modules.7.html
 find_package(ECM REQUIRED NO_MODULE)
-# Needed by find_package(KF5Plasma) below.
-set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR} ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${CMAKE_MODULE_PATH})
+
+set(QT_MAJOR_VERSION 6)
+set(QT_DEFAULT_MAJOR_VERSION 6)
 
 include(KDEInstallDirs)
 include(KDECMakeSettings)
 include(KDECompilerSettings)
-
-# Locate plasma_install_package macro.
-find_package(KF5Plasma REQUIRED)
-find_package(Qt5 ${REQUIRED_QT_VERSION} CONFIG REQUIRED Quick)
-find_package(KF5 ${KF5_MIN_VERSION} REQUIRED COMPONENTS Plasma)
+find_package(Qt6 REQUIRED COMPONENTS Quick Qml)
+find_package(KF6 REQUIRED COMPONENTS KIO)
+find_package(Plasma REQUIRED)
 
 add_subdirectory(process)
 
-
-# Add installatation target ("make install").
-plasma_install_package(plasmoid eu.naraesk.docker-control)
+# Add installation target ("make install").
+plasma_install_package(plasmoid eu.naraesk.podman-control)

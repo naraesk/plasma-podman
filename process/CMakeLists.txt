@@ -1,14 +1,22 @@
+add_subdirectory(go)
+
 set(plasmoidplugin_SRCS
     plugin.cpp
     process.cpp
+    docker.h
     )
 
-find_package(KF5KIO)
+add_library(testlib SHARED)
+set_property(TARGET testlib PROPERTY IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/docker.so")
+
+find_package(KF6 REQUIRED COMPONENTS KIO)
 
 add_library(plasmoidplugin SHARED ${plasmoidplugin_SRCS})
 
-target_link_libraries(plasmoidplugin Qt5::Quick KF5::Plasma KF5::KIOCore KF5::KIOFileWidgets KF5::KIOWidgets KF5::KIONTLM)
+add_dependencies(plasmoidplugin goshim)
 
-install(TARGETS plasmoidplugin DESTINATION ${QML_INSTALL_DIR}/eu/naraesk/docker/process)
+target_link_libraries(plasmoidplugin Qt6::Quick Plasma::Plasma KF6::KIOCore KF6::KIOWidgets goshim pthread)
 
-install(FILES qmldir DESTINATION ${QML_INSTALL_DIR}/eu/naraesk/docker/process)
+install(TARGETS plasmoidplugin DESTINATION ${KDE_INSTALL_QMLDIR}/eu/naraesk/podman/process)
+
+install(FILES qmldir DESTINATION ${KDE_INSTALL_QMLDIR}/eu/naraesk/podman/process)

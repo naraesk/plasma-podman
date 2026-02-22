@@ -1,0 +1,22 @@
+{
+    "KPlugin": {
+        "Id": "eu.naraesk.podman-control",
+        "Name": "Podman Control",
+        "Description": "Controls Podman Containers",
+        "Icon": "podman",
+        "Authors": [
+            {
+                "Name": "David Baum",
+                "Email": "david.baum@naraesk.eu"
+            }
+        ],
+        "Category": "Multimedia",
+        "License": "GPL",
+        "Version": "3.0.0",
+        "Website": "https://github.com/naraesk/plasma-docker"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-NotificationArea": true,
+    "X-Plasma-NotificationAreaCategory": "ApplicationStatus"
+}
