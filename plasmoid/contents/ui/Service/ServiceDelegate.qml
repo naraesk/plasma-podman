@@ -28,65 +28,38 @@ RowLayout {
     id: serviceRow;
     visible: aVisible;
     property bool online: model.online;
-    Layout.leftMargin: 20;
+    Layout.leftMargin: Kirigami.Units.gridUnit + Kirigami.Units.largeSpacing;
     Layout.fillWidth: true;
-    spacing: 0;
-
-    onVisibleChanged: {
-        height = Service.getHeight(visible, text.height);
-    }
+    spacing: Kirigami.Units.smallSpacing;
+    height: aVisible ? implicitHeight : 0;
 
     onOnlineChanged: {
-        statusIndicator.active = online;
+        statusSwitch.checked = online;
     }
 
     Behavior on height {
         NumberAnimation { duration: 100; }
     }
 
-    Rectangle {
-        id: spacer;
-        width: Kirigami.Units.largeSpacing * 3;
-    }
-
-    MouseArea {
-        id: statusButton;
-        height: 15;
-        width: 15;
-        onClicked: {
-            statusIndicator.active = !statusIndicator.active;
-            Service.startAndStopService(statusIndicator.active, model.file, model.name);
+    Switch {
+        id: statusSwitch;
+        checked: online;
+        onToggled: {
+            Service.startAndStopService(checked, model.file, model.name);
         }
-
-        Rectangle {
-            id: statusIndicator;
-            property bool active: online;
-            anchors.fill: parent;
-            radius: width / 2;
-            color: active ? "green" : "gray";
-        }
-    }
-
-    Rectangle {
-        id: spacer2;
-        width: Kirigami.Units.smallSpacing;
     }
 
     Label {
         Layout.topMargin: Kirigami.Units.smallSpacing;
         Layout.bottomMargin: Kirigami.Units.smallSpacing;
+        Layout.fillWidth: true;
         id: text;
         text: name;
     }
 
-    Rectangle {
-        id: spacer3;
-        width: Kirigami.Units.largeSpacing;
-    }
-
     ToolButton {
         id: execButton;
-        icon.name: "bash";
+        icon.name: "utilities-terminal";
         icon.width: Kirigami.Units.iconSizes.small;
         icon.height: Kirigami.Units.iconSizes.small;
         ToolTip.text: qsTr("Run shell");
@@ -97,7 +70,7 @@ RowLayout {
 
     ToolButton {
         id: browserButton;
-        icon.name: "browser";
+        icon.name: "internet-web-browser";
         icon.width: Kirigami.Units.iconSizes.small;
         icon.height: Kirigami.Units.iconSizes.small;
         ToolTip.text: qsTr("Open in browser");

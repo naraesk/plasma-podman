@@ -29,13 +29,6 @@ function loadServices() {
             serviceModel.append(realitem);
         }
     }
-
-    var numberOfRows = serviceModel.rowCount();
-    if(numberOfRows === 0) {
-       // root.Layout.minimumHeight = view.contentItem.children[0].height;
-    } else {
-        root.Layout.minimumHeight = view.contentItem.children[0].height + (numberOfRows) * 18 + 10;
-    }
 }
 
 function createModelItem(file, name, stack) {

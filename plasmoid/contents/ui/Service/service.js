@@ -17,14 +17,6 @@
  * along with plasma-docker.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-function getHeight(visible, height) {
-    if(visible) {
-        return height;
-    } else {
-        return 0;
-    }
-}
-
 function startAndStopService(status, file, name){
     if (status) {
         startService(file, name);

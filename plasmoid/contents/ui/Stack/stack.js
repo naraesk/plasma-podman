@@ -46,14 +46,6 @@ function checkStatus(stack) {
     return false;
 }
 
-function updateIcon(button, isExpanded) {
-    if(isExpanded) {
-        button.icon.name = "list-remove";
-    } else {
-        button.icon.name = "list-add";
-    }
-}
-
 function updateVisibility(stack, visibility) {
     for(var i=0; i<serviceModel.count; i++) {
         var service = serviceModel.get(i);

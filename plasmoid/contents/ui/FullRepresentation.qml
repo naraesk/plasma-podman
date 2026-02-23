@@ -29,9 +29,9 @@ import "Stack"
 
 Item {
     id: root;
-    Layout.minimumWidth: 170;
-    Layout.minimumHeight: 100;
-    height: Kirigami.Units.gridUnit * 4;
+    Layout.minimumWidth: Kirigami.Units.gridUnit * 12;
+    Layout.minimumHeight: Kirigami.Units.gridUnit * 6;
+    Layout.preferredHeight: view.contentHeight;
 
     Component.onCompleted: {
         Model.loadServices();
@@ -52,9 +52,8 @@ Item {
 
     ListView {
         id: view;
-        contentHeight: 100;
-        anchors.fill: root;
-        anchors.top: root.top;
+        anchors.fill: parent;
+        clip: true;
         model: serviceModel;
         spacing: Kirigami.Units.smallSpacing;
         delegate: ServiceDelegate {}
