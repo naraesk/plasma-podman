@@ -22,6 +22,8 @@
 
 #include <QProcess>
 #include <QString>
+#include <QStringList>
+#include <QFileSystemWatcher>
 
 class Process : public QProcess
 {
@@ -34,19 +36,33 @@ private:
     void runPodmanCompose(const QString &file, const QStringList &arguments);
     void runPodman(const QStringList &arguments);
     QString getContainerID(const QString &file, const QString &serviceName);
+    QString parsePublishedPorts(const QString &configOutput, const QString &serviceName);
+    QString parseExposedPorts(const QString &inspectOutput);
+    QFileSystemWatcher m_watcher;
+
+Q_SIGNALS:
+    void composeFileChanged(const QString &path);
 
 public Q_SLOTS:
+    void watchFile(const QString &path);
     void startStack(const QString &file);
     void stopStack(const QString &file);
     void startService(const QString &file, const QString &serviceName);
     void stopService(const QString &file, const QString &serviceName);
+    void restartService(const QString &file, const QString &serviceName);
     QStringList getServices(const QString &file);
     QStringList getRunningServices(const QString &file);
     void showLog(const QString& file);
+    void showServiceLog(const QString &file, const QString &serviceName);
     void runShell(const QString &file, const QString &serviceName);
     void startBrowser(const QString &file, const QString &serviceName);
     bool isPublic(const QString &file, const QString serviceName);
+    QString getPublicPorts(const QString &file, const QString &serviceName);
     void editFile(const QString &file);
+    void openDirectory(const QString &path);
+    void pullImages(const QString &file);
+    QString getServiceImage(const QString &file, const QString &serviceName);
+    QStringList getServiceVolumes(const QString &file, const QString &serviceName);
 };
 
 #endif // PROCESS_H

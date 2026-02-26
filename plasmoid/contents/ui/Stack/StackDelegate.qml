@@ -34,7 +34,6 @@ ColumnLayout {
     Component.onCompleted: {
         composeFile = Stack.getComposeFile(section);
         isExpanded = true;
-        statusSwitch.checked = Stack.checkStatus(section);
     }
 
     onIsExpandedChanged: {
@@ -61,19 +60,29 @@ ColumnLayout {
                 }
             }
 
-            Switch {
-                id: statusSwitch;
-                checked: false;
-                onToggled: {
-                    Stack.startAndStopStack(checked, composeFile);
-                }
-            }
-
             Kirigami.Heading {
                 id: stackName;
                 text: section;
                 Layout.fillWidth: true;
                 level: 4;
+            }
+
+            ToolButton {
+                id: pullButton;
+                property string pullState: "idle";
+                icon.name: "download";
+                icon.width: Kirigami.Units.iconSizes.small;
+                icon.height: Kirigami.Units.iconSizes.small;
+                icon.color: pullState === "success" ? Kirigami.Theme.positiveTextColor
+                          : pullState === "failure" ? Kirigami.Theme.negativeTextColor
+                          : "transparent";
+                ToolTip.text: qsTr("Pull images");
+                ToolTip.visible: hovered;
+                enabled: pullState !== "pulling";
+                onClicked: {
+                    pullState = "pulling";
+                    pullProcess.pullImages(composeFile);
+                }
             }
 
             ToolButton {
@@ -109,11 +118,47 @@ ColumnLayout {
         running: true;
         onTriggered: {
             Stack.updateSection(composeFile);
-            statusSwitch.checked = Stack.checkStatus(section);
+        }
+    }
+
+    Timer {
+        id: fastPollTimer;
+        property int remainingTicks: 0;
+        interval: 1000 * 3;
+        repeat: true;
+        running: false;
+        onTriggered: {
+            Stack.updateSection(composeFile);
+            remainingTicks--;
+            if (remainingTicks <= 0) {
+                running = false;
+            }
+        }
+    }
+
+    Connections {
+        target: root;
+        function onFastPollGenerationChanged() {
+            fastPollTimer.remainingTicks = 10;
+            fastPollTimer.running = true;
         }
     }
 
     Process {
         id: stackProcess;
+    }
+
+    Process {
+        id: pullProcess;
+        onFinished: function(exitCode) {
+            pullButton.pullState = exitCode === 0 ? "success" : "failure";
+            pullResetTimer.restart();
+        }
+    }
+
+    Timer {
+        id: pullResetTimer;
+        interval: 5000;
+        onTriggered: pullButton.pullState = "idle";
     }
 }

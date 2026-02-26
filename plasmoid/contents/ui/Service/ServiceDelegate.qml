@@ -24,13 +24,14 @@ import eu.naraesk.podman.process 1.2;
 import org.kde.kirigami as Kirigami;
 import "service.js" as Service;
 
-RowLayout {
-    id: serviceRow;
+ColumnLayout {
+    id: serviceDelegate;
     visible: aVisible;
     property bool online: model.online;
-    Layout.leftMargin: Kirigami.Units.gridUnit + Kirigami.Units.largeSpacing;
-    Layout.fillWidth: true;
-    spacing: Kirigami.Units.smallSpacing;
+    property bool volumesExpanded: false;
+    property var parsedVolumes: model.volumes ? JSON.parse(model.volumes) : [];
+    width: parent ? parent.width : 0;
+    spacing: 0;
     height: aVisible ? implicitHeight : 0;
 
     onOnlineChanged: {
@@ -41,42 +42,153 @@ RowLayout {
         NumberAnimation { duration: 100; }
     }
 
-    Switch {
-        id: statusSwitch;
-        checked: online;
-        onToggled: {
-            Service.startAndStopService(checked, model.file, model.name);
+    RowLayout {
+        id: serviceRow;
+        Layout.fillWidth: true;
+        Layout.leftMargin: Kirigami.Units.gridUnit + Kirigami.Units.largeSpacing;
+        spacing: Kirigami.Units.smallSpacing;
+
+        Switch {
+            id: statusSwitch;
+            checked: online;
+            onToggled: {
+                Service.startAndStopService(checked, model.file, model.name);
+                root.fastPollGeneration++;
+            }
+        }
+
+        Label {
+            Layout.topMargin: Kirigami.Units.smallSpacing;
+            Layout.bottomMargin: Kirigami.Units.smallSpacing;
+            id: text;
+            text: name;
+            ToolTip.text: model.imageTag;
+            ToolTip.visible: model.imageTag !== "" && nameHover.hovered;
+
+            HoverHandler {
+                id: nameHover;
+            }
+        }
+
+        Label {
+            id: portLabel;
+            text: ":" + model.port;
+            visible: model.port !== "";
+            opacity: 0.6;
+        }
+
+        Item {
+            Layout.fillWidth: true;
+        }
+
+        ToolButton {
+            id: volumeButton;
+            icon.name: serviceDelegate.volumesExpanded ? "folder-open" : "folder";
+            icon.width: Kirigami.Units.iconSizes.small;
+            icon.height: Kirigami.Units.iconSizes.small;
+            ToolTip.text: qsTr("Show volumes");
+            ToolTip.visible: hovered;
+            visible: serviceDelegate.parsedVolumes.length > 0;
+            onClicked: serviceDelegate.volumesExpanded = !serviceDelegate.volumesExpanded;
+        }
+
+        ToolButton {
+            id: logButton;
+            icon.name: "text-x-log";
+            icon.width: Kirigami.Units.iconSizes.small;
+            icon.height: Kirigami.Units.iconSizes.small;
+            ToolTip.text: qsTr("Show log");
+            ToolTip.visible: hovered;
+            visible: model.online;
+            onClicked: serviceProcess.showServiceLog(model.file, model.name);
+        }
+
+        ToolButton {
+            id: restartButton;
+            icon.name: "view-refresh";
+            icon.width: Kirigami.Units.iconSizes.small;
+            icon.height: Kirigami.Units.iconSizes.small;
+            ToolTip.text: qsTr("Restart service");
+            ToolTip.visible: hovered;
+            visible: model.online;
+            onClicked: {
+                Service.restartService(model.file, model.name);
+                root.fastPollGeneration++;
+            }
+        }
+
+        ToolButton {
+            id: execButton;
+            icon.name: "utilities-terminal";
+            icon.width: Kirigami.Units.iconSizes.small;
+            icon.height: Kirigami.Units.iconSizes.small;
+            ToolTip.text: qsTr("Run shell");
+            ToolTip.visible: hovered;
+            visible: model.online;
+            onClicked: serviceProcess.runShell(model.file, model.name);
+        }
+
+        ToolButton {
+            id: browserButton;
+            icon.name: "google-chrome";
+            icon.width: Kirigami.Units.iconSizes.small;
+            icon.height: Kirigami.Units.iconSizes.small;
+            ToolTip.text: qsTr("Open in browser");
+            ToolTip.visible: hovered;
+            visible: model.online && model.port !== "";
+            onClicked: serviceProcess.startBrowser(model.file, model.name);
         }
     }
 
-    Label {
-        Layout.topMargin: Kirigami.Units.smallSpacing;
-        Layout.bottomMargin: Kirigami.Units.smallSpacing;
+    ColumnLayout {
+        id: volumeList;
+        visible: serviceDelegate.volumesExpanded;
         Layout.fillWidth: true;
-        id: text;
-        text: name;
-    }
+        Layout.leftMargin: Kirigami.Units.gridUnit + Kirigami.Units.largeSpacing;
+        spacing: Kirigami.Units.smallSpacing;
 
-    ToolButton {
-        id: execButton;
-        icon.name: "utilities-terminal";
-        icon.width: Kirigami.Units.iconSizes.small;
-        icon.height: Kirigami.Units.iconSizes.small;
-        ToolTip.text: qsTr("Run shell");
-        ToolTip.visible: hovered;
-        visible: model.online;
-        onClicked: serviceProcess.runShell(model.file, model.name);
-    }
+        Repeater {
+            model: serviceDelegate.parsedVolumes;
 
-    ToolButton {
-        id: browserButton;
-        icon.name: "internet-web-browser";
-        icon.width: Kirigami.Units.iconSizes.small;
-        icon.height: Kirigami.Units.iconSizes.small;
-        ToolTip.text: qsTr("Open in browser");
-        ToolTip.visible: hovered;
-        visible: model.online && model.port;
-        onClicked: serviceProcess.startBrowser(model.file, model.name);
+            RowLayout {
+                Layout.fillWidth: true;
+                spacing: Kirigami.Units.smallSpacing;
+
+                Kirigami.Icon {
+                    source: "folder-symbolic";
+                    implicitWidth: Kirigami.Units.iconSizes.small;
+                    implicitHeight: Kirigami.Units.iconSizes.small;
+                }
+
+                Label {
+                    text: modelData.container;
+                    opacity: 0.7;
+                }
+
+                Label {
+                    text: "\u2192";
+                    opacity: 0.5;
+                }
+
+                Label {
+                    text: modelData.host;
+                    Layout.fillWidth: true;
+                    elide: Text.ElideMiddle;
+                    color: hostMouseArea.containsMouse ? Kirigami.Theme.linkColor : Kirigami.Theme.textColor;
+
+                    MouseArea {
+                        id: hostMouseArea;
+                        anchors.fill: parent;
+                        hoverEnabled: true;
+                        cursorShape: Qt.PointingHandCursor;
+                        onClicked: serviceProcess.openDirectory(modelData.host);
+                    }
+
+                    ToolTip.text: modelData.host;
+                    ToolTip.visible: hostMouseArea.containsMouse;
+                }
+            }
+        }
     }
 
     Process {

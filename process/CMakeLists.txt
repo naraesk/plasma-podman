@@ -15,7 +15,7 @@ add_library(plasmoidplugin SHARED ${plasmoidplugin_SRCS})
 
 add_dependencies(plasmoidplugin goshim)
 
-target_link_libraries(plasmoidplugin Qt6::Quick Plasma::Plasma KF6::KIOCore KF6::KIOWidgets goshim pthread)
+target_link_libraries(plasmoidplugin Qt6::Quick KF6::KIOCore KF6::KIOWidgets goshim pthread)
 
 install(TARGETS plasmoidplugin DESTINATION ${KDE_INSTALL_QMLDIR}/eu/naraesk/podman/process)
 

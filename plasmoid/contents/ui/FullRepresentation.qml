@@ -29,6 +29,7 @@ import "Stack"
 
 Item {
     id: root;
+    property int fastPollGeneration: 0;
     Layout.minimumWidth: Kirigami.Units.gridUnit * 12;
     Layout.minimumHeight: Kirigami.Units.gridUnit * 6;
     Layout.preferredHeight: view.contentHeight;
@@ -44,6 +45,7 @@ Item {
 
     Process {
         id: process;
+        onComposeFileChanged: { Model.loadServices(); }
     }
 
     ListModel {

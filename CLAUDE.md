@@ -10,6 +10,8 @@ KDE Plasma 6 widget for controlling Podman Compose stacks from the system tray.
 
 This runs cmake + make, installs with sudo, then restarts plasmashell via `kquitapp6 plasmashell && kstart plasmashell`.
 
+This command should always be run by the user and not by Claude.
+
 ## Project Structure
 
 - `plasmoid/` - QML widget package
@@ -38,3 +40,4 @@ This runs cmake + make, installs with sudo, then restarts plasmashell via `kquit
 - **Podman Compose behavior**: `podman compose config --services` lists all defined services. `podman compose ps --services` only lists services with existing containers.
 - **Config dialog layout**: Avoid putting `ListView` (scrollable) inside `Kirigami.FormLayout` in Plasma 6 config pages — it causes layout sizing conflicts. Use `Repeater` inside a `ColumnLayout` instead, with `Kirigami.FormLayout` as a child for just the form fields.
 - **Process commands**: `runPodmanCompose()` in process.cpp invokes `podman compose` (compose as a subcommand of podman).
+- **C++ plugin link libraries**: The `process/` plugin only uses Qt and KIO — do NOT add `Plasma::Plasma` to its `target_link_libraries`. The top-level `find_package(Plasma)` is needed for `plasma_install_package()`, but the plugin itself has no Plasma C++ dependency. Adding it causes a runtime `libPlasma.so.6` load failure.

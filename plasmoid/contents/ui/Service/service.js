@@ -32,3 +32,7 @@ function startService(file, name) {
 function stopService(file, name) {
     process.stopService(file, name);
 }
+
+function restartService(file, name) {
+    process.restartService(file, name);
+}
