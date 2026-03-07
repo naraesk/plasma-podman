@@ -107,31 +107,40 @@ ColumnLayout {
 
     Kirigami.Separator {
         Layout.fillWidth: true
+        Layout.topMargin: Kirigami.Units.largeSpacing
     }
 
-    Label {
+    Kirigami.Heading {
         text: i18n("Configured stacks")
-        font.bold: true
+        level: 4
+        Layout.topMargin: Kirigami.Units.smallSpacing
     }
 
     ListModel {
         id: serviceModel
     }
 
-    Repeater {
-        model: serviceModel
+    ColumnLayout {
+        Layout.fillWidth: true
+        spacing: 0
 
-        delegate: ItemDelegate {
-            Layout.fillWidth: true
-            contentItem: RowLayout {
+        Repeater {
+            model: serviceModel
+
+            delegate: RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+
                 Label {
                     text: model.service
-                    Layout.preferredWidth: 120
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 8
+                    elide: Text.ElideRight
                 }
                 Label {
                     text: model.dir
                     Layout.fillWidth: true
                     elide: Text.ElideMiddle
+                    opacity: 0.7
                 }
                 ToolButton {
                     icon.name: "arrow-up"
@@ -151,10 +160,14 @@ ColumnLayout {
         }
     }
 
+    Item {
+        Layout.fillHeight: true
+    }
+
     FileDialog {
         id: fileDialog
         title: i18n("Please choose a compose file")
-        nameFilters: ["Compose files (*.yml)"]
+        nameFilters: ["Compose files (*.yml *.yaml)"]
         onAccepted: {
             var folderPath = fileDialog.selectedFile.toString();
             folderPath = folderPath.replace(/^(file:\/{2})|(qrc:\/{2})|(http:\/{2})/, "");

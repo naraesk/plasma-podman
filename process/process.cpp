@@ -21,22 +21,14 @@
 #include <KIO/OpenUrlJob>
 #include <KIO/JobUiDelegateFactory>
 #include <QUrl>
-#include <QDebug>
-#include <QFile>
 #include <QFileInfo>
 #include <QDir>
-#include <QTextStream>
-#include "docker.h"
-
-static void debugLog(const QString &msg) {
-    QFile file("/tmp/podman-debug.log");
-    file.open(QIODevice::Append | QIODevice::Text);
-    QTextStream out(&file);
-    out << msg << "\n";
-}
-
 
 Process::Process(QObject *parent) : QProcess(parent) {
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("PODMAN_COMPOSE_WARNING_LOGS", "false");
+    setProcessEnvironment(env);
+
     connect(&m_watcher, &QFileSystemWatcher::fileChanged, this, [this](const QString &path) {
         // Re-add the file since some editors replace files (remove + create)
         if (!m_watcher.files().contains(path)) {
@@ -55,21 +47,9 @@ void Process::watchFile(const QString &path) {
     }
 }
 
-void Process::startStack(const QString &file) {
-    QStringList arguments;
-    arguments << "up" << "-d";
-    runPodmanCompose(file, arguments);
-}
-
-void Process::stopStack(const QString &file) {
-    QStringList arguments;
-    arguments << "stop";
-    runPodmanCompose(file, arguments);
-}
-
 void Process::startService(const QString &file, const QString &serviceName) {
     QStringList arguments;
-    arguments  << "up" << "-d" << serviceName;
+    arguments << "up" << "-d" << serviceName;
     runPodmanCompose(file, arguments);
 }
 
@@ -95,7 +75,6 @@ QStringList Process::getServices(const QString &file) {
 }
 
 QStringList Process::getRunningServices(const QString &file) {
-    debugLog("getRunningServices called for file: " + file);
     QStringList arguments;
     arguments << "ps"
               << "--filter" << "label=com.docker.compose.project.config_files=" + file
@@ -104,7 +83,6 @@ QStringList Process::getRunningServices(const QString &file) {
     runPodman(arguments);
     waitForFinished();
     QString podmanOutput(readAllStandardOutput());
-    debugLog("running services: " + podmanOutput.trimmed());
     return podmanOutput.split("\n", Qt::SkipEmptyParts);
 }
 
@@ -119,6 +97,8 @@ void Process::runPodman(const QStringList &arguments) {
 }
 
 void Process::showLog(const QString &file) {
+    QStringList services = getRunningServices(file);
+
     QStringList arguments;
     arguments << "--noclose"
               << "-e"
@@ -126,6 +106,7 @@ void Process::showLog(const QString &file) {
               << "compose"
               << "-f" << file
               << "logs" << "-f";
+    arguments << services;
     start("konsole", arguments);
 }
 
@@ -176,28 +157,15 @@ QString Process::getContainerID(const QString &file, const QString &serviceName)
     return podmanOutput.trimmed();
 }
 
-bool Process::isPublic(const QString &file, const QString serviceName) {
-    QStringList arguments;
-    arguments << "ps" << serviceName;
-    runPodmanCompose(file, arguments);
-    waitForFinished();
-    QString composeOutput(readAllStandardOutput());
-    return composeOutput.contains("->");
-}
-
 QString Process::getPublicPorts(const QString &file, const QString &serviceName) {
-    debugLog("getPublicPorts called for " + serviceName + " file: " + file);
-
     // Try runtime port mappings first (works for bridge networking)
     QString containerID = getContainerID(file, serviceName);
-    debugLog("containerID: " + containerID);
     if (!containerID.isEmpty()) {
         QStringList arguments;
         arguments << "port" << containerID;
         runPodman(arguments);
         waitForFinished();
         QString podmanOutput(readAllStandardOutput());
-        debugLog("podman port output: " + podmanOutput);
         QStringList ports = podmanOutput.split("\n", Qt::SkipEmptyParts);
         QStringList hostPorts;
         for (const QString &port : ports) {
@@ -208,37 +176,29 @@ QString Process::getPublicPorts(const QString &file, const QString &serviceName)
             }
         }
         if (!hostPorts.isEmpty()) {
-            QString result = hostPorts.join(", ");
-            debugLog("returning runtime ports: " + result);
-            return result;
+            return hostPorts.join(", ");
         }
     }
 
     // Fallback 1: parse compose config for declared ports
-    debugLog("runtime ports empty, falling back to compose config");
     QStringList configArgs;
     configArgs << "config";
     runPodmanCompose(file, configArgs);
     waitForFinished();
     QString configOutput(readAllStandardOutput());
-    debugLog("compose config output (first 500): " + configOutput.left(500));
     QString result = parsePublishedPorts(configOutput, serviceName);
-    debugLog("parsed ports result: " + result);
     if (!result.isEmpty()) {
         return result;
     }
 
     // Fallback 2: inspect container for exposed ports (for network_mode: host with no ports: section)
     if (!containerID.isEmpty()) {
-        debugLog("compose config had no ports, falling back to container inspect");
         QStringList inspectArgs;
         inspectArgs << "inspect" << "--format" << "{{json .Config.ExposedPorts}}" << containerID;
         runPodman(inspectArgs);
         waitForFinished();
         QString inspectOutput(readAllStandardOutput());
-        debugLog("inspect ExposedPorts output: " + inspectOutput);
         result = parseExposedPorts(inspectOutput.trimmed());
-        debugLog("parsed exposed ports: " + result);
     }
     return result;
 }
@@ -258,40 +218,34 @@ QString Process::parsePublishedPorts(const QString &configOutput, const QString 
         while (indent < line.length() && line[indent] == ' ') indent++;
 
         if (inService && indent <= serviceIndent) {
-            debugLog("left service section at line: " + line);
             break;
         }
 
         if (!inService && line.trimmed() == serviceName + ":") {
             inService = true;
             serviceIndent = indent;
-            debugLog("found service " + serviceName + " at indent " + QString::number(indent));
             continue;
         }
 
         if (inService) {
             // Leave ports section when we hit a non-list-item at same or lower indent
             if (inPorts && indent <= portsIndent && !line.trimmed().startsWith("- ")) {
-                debugLog("left ports section at line: " + line);
                 inPorts = false;
             }
 
             if (!inPorts && line.trimmed() == "ports:") {
                 inPorts = true;
                 portsIndent = indent;
-                debugLog("found ports: at indent " + QString::number(indent));
                 continue;
             }
 
             if (inPorts) {
                 QString trimmed = line.trimmed();
-                debugLog("ports line: " + trimmed);
 
                 // Long format: published: "8081"
                 if (trimmed.startsWith("published:")) {
                     QString value = trimmed.mid(10).trimmed();
                     value.remove('"');
-                    debugLog("found published port (long): " + value);
                     if (!value.isEmpty()) {
                         hostPorts << value;
                     }
@@ -303,7 +257,6 @@ QString Process::parsePublishedPorts(const QString &configOutput, const QString 
                     value.remove('\'');
                     // Extract host port (part before first colon)
                     QString hostPort = value.section(':', 0, 0);
-                    debugLog("found published port (short): " + hostPort);
                     if (!hostPort.isEmpty()) {
                         hostPorts << hostPort;
                     }
@@ -335,6 +288,12 @@ QString Process::parseExposedPorts(const QString &inspectOutput) {
 void Process::pullImages(const QString &file) {
     QStringList arguments;
     arguments << "pull";
+    runPodmanCompose(file, arguments);
+}
+
+void Process::recreateStack(const QString &file) {
+    QStringList arguments;
+    arguments << "up" << "-d" << "--force-recreate";
     runPodmanCompose(file, arguments);
 }
 
@@ -538,5 +497,153 @@ QStringList Process::getServiceVolumes(const QString &file, const QString &servi
     return volumes;
 }
 
-// show all public avaible containers
-// podman ps --format "{{.ID}}@@{{.Ports}}"
+QString Process::getComposeProjectName(const QString &file) {
+    QStringList configArgs;
+    configArgs << "config";
+    runPodmanCompose(file, configArgs);
+    waitForFinished();
+    QString configOutput(readAllStandardOutput());
+
+    QStringList lines = configOutput.split("\n");
+    for (const QString &line : lines) {
+        QString trimmed = line.trimmed();
+        if (trimmed.startsWith("name:")) {
+            QString name = trimmed.mid(5).trimmed();
+            name.remove('"').remove('\'');
+            return name;
+        }
+        // Stop once we hit the services section
+        if (trimmed == "services:") break;
+    }
+
+    // Fallback: use compose file's parent directory name
+    return QFileInfo(file).absoluteDir().dirName();
+}
+
+QStringList Process::getServiceNamedVolumes(const QString &file, const QString &serviceName) {
+    QStringList configArgs;
+    configArgs << "config";
+    runPodmanCompose(file, configArgs);
+    waitForFinished();
+    QString configOutput(readAllStandardOutput());
+
+    QStringList lines = configOutput.split("\n");
+    QStringList namedVolumes;
+    bool inService = false;
+    bool inVolumes = false;
+    bool inLongSyntax = false;
+    int serviceIndent = -1;
+    int volumesIndent = -1;
+    int longSyntaxIndent = -1;
+    QString longSource;
+
+    for (const QString &line : lines) {
+        if (line.trimmed().isEmpty()) continue;
+
+        int indent = 0;
+        while (indent < line.length() && line[indent] == ' ') indent++;
+
+        if (inService && indent <= serviceIndent) break;
+
+        if (!inService && line.trimmed() == serviceName + ":") {
+            inService = true;
+            serviceIndent = indent;
+            continue;
+        }
+
+        if (inService) {
+            if (inVolumes && indent <= volumesIndent && !line.trimmed().startsWith("- ")) {
+                inVolumes = false;
+                inLongSyntax = false;
+            }
+
+            if (!inVolumes && line.trimmed() == "volumes:") {
+                inVolumes = true;
+                volumesIndent = indent;
+                continue;
+            }
+
+            if (inVolumes) {
+                QString trimmed = line.trimmed();
+
+                // Long syntax list item start
+                if (trimmed.startsWith("- ") && !trimmed.contains(":")) {
+                    if (inLongSyntax && !longSource.isEmpty()
+                        && !longSource.startsWith("/") && !longSource.startsWith(".")) {
+                        namedVolumes << longSource;
+                    }
+                    inLongSyntax = true;
+                    longSyntaxIndent = indent;
+                    longSource.clear();
+                    QString after = trimmed.mid(2).trimmed();
+                    if (after.startsWith("source:")) {
+                        longSource = after.mid(7).trimmed();
+                        longSource.remove('"').remove('\'');
+                    }
+                    continue;
+                }
+
+                // Long syntax continuation
+                if (inLongSyntax && indent > longSyntaxIndent) {
+                    if (trimmed.startsWith("source:")) {
+                        longSource = trimmed.mid(7).trimmed();
+                        longSource.remove('"').remove('\'');
+                    }
+                    continue;
+                }
+
+                // Short syntax: - volname:/container/path
+                if (trimmed.startsWith("- ")) {
+                    if (inLongSyntax && !longSource.isEmpty()
+                        && !longSource.startsWith("/") && !longSource.startsWith(".")) {
+                        namedVolumes << longSource;
+                    }
+                    inLongSyntax = false;
+
+                    QString value = trimmed.mid(2).trimmed();
+                    value.remove('"').remove('\'');
+                    int colonPos = value.indexOf(':');
+                    if (colonPos > 0) {
+                        QString source = value.left(colonPos);
+                        if (!source.startsWith("/") && !source.startsWith(".")) {
+                            namedVolumes << source;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Flush final long syntax entry
+    if (inLongSyntax && !longSource.isEmpty()
+        && !longSource.startsWith("/") && !longSource.startsWith(".")) {
+        namedVolumes << longSource;
+    }
+
+    return namedVolumes;
+}
+
+void Process::deleteServiceVolumes(const QString &file, const QString &serviceName) {
+    QStringList namedVolumes = getServiceNamedVolumes(file, serviceName);
+    QString projectName = getComposeProjectName(file);
+
+    // Stop the service
+    QStringList stopArgs;
+    stopArgs << "stop" << serviceName;
+    runPodmanCompose(file, stopArgs);
+    waitForFinished();
+
+    // Remove the container
+    QStringList rmArgs;
+    rmArgs << "rm" << "-f" << serviceName;
+    runPodmanCompose(file, rmArgs);
+    waitForFinished();
+
+    // Remove each named volume
+    for (const QString &vol : namedVolumes) {
+        QStringList volArgs;
+        volArgs << "volume" << "rm" << "-f" << projectName + "_" + vol;
+        runPodman(volArgs);
+        waitForFinished();
+    }
+}

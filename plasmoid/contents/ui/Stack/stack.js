@@ -18,23 +18,17 @@
  */
 
 function updateSection(file) {
-    console.log("updateSection called for file:", file);
     var ids = process.getRunningServices(file);
-    console.log("running services:", JSON.stringify(ids));
     for(var i=0; i< serviceModel.count; i++){
         var service = serviceModel.get(i);
         if(service.file === file) {
             service.online = ids.includes(service.name);
-            console.log("service:", service.name, "online:", service.online);
             if (service.online) {
-                console.log("calling getPublicPorts for", service.name);
                 var ports = process.getPublicPorts(file, service.name);
-                console.log("getPublicPorts returned:", ports, "type:", typeof ports);
                 service.port = ports;
             } else {
                 service.port = "";
             }
-            console.log("service.port is now:", service.port);
         }
     }
 }

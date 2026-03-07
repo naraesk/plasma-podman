@@ -38,6 +38,8 @@ private:
     QString getContainerID(const QString &file, const QString &serviceName);
     QString parsePublishedPorts(const QString &configOutput, const QString &serviceName);
     QString parseExposedPorts(const QString &inspectOutput);
+    QStringList getServiceNamedVolumes(const QString &file, const QString &serviceName);
+    QString getComposeProjectName(const QString &file);
     QFileSystemWatcher m_watcher;
 
 Q_SIGNALS:
@@ -45,8 +47,6 @@ Q_SIGNALS:
 
 public Q_SLOTS:
     void watchFile(const QString &path);
-    void startStack(const QString &file);
-    void stopStack(const QString &file);
     void startService(const QString &file, const QString &serviceName);
     void stopService(const QString &file, const QString &serviceName);
     void restartService(const QString &file, const QString &serviceName);
@@ -56,13 +56,14 @@ public Q_SLOTS:
     void showServiceLog(const QString &file, const QString &serviceName);
     void runShell(const QString &file, const QString &serviceName);
     void startBrowser(const QString &file, const QString &serviceName);
-    bool isPublic(const QString &file, const QString serviceName);
     QString getPublicPorts(const QString &file, const QString &serviceName);
     void editFile(const QString &file);
     void openDirectory(const QString &path);
     void pullImages(const QString &file);
+    void recreateStack(const QString &file);
     QString getServiceImage(const QString &file, const QString &serviceName);
     QStringList getServiceVolumes(const QString &file, const QString &serviceName);
+    void deleteServiceVolumes(const QString &file, const QString &serviceName);
 };
 
 #endif // PROCESS_H

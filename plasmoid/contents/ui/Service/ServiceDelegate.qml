@@ -64,6 +64,7 @@ ColumnLayout {
             text: name;
             ToolTip.text: model.imageTag;
             ToolTip.visible: model.imageTag !== "" && nameHover.hovered;
+            ToolTip.delay: Kirigami.Units.toolTipDelay;
 
             HoverHandler {
                 id: nameHover;
@@ -88,8 +89,26 @@ ColumnLayout {
             icon.height: Kirigami.Units.iconSizes.small;
             ToolTip.text: qsTr("Show volumes");
             ToolTip.visible: hovered;
+            ToolTip.delay: Kirigami.Units.toolTipDelay;
             visible: serviceDelegate.parsedVolumes.length > 0;
             onClicked: serviceDelegate.volumesExpanded = !serviceDelegate.volumesExpanded;
+        }
+
+        ToolButton {
+            id: deleteVolumesButton;
+            ToolTip.text: qsTr("Delete volumes");
+            ToolTip.visible: hovered;
+            ToolTip.delay: Kirigami.Units.toolTipDelay;
+            visible: serviceDelegate.parsedVolumes.length > 0;
+            onClicked: deleteVolumesDialog.open();
+
+            contentItem: Kirigami.Icon {
+                source: "edit-delete";
+                color: Kirigami.Theme.textColor;
+                isMask: true;
+                implicitWidth: Kirigami.Units.iconSizes.small;
+                implicitHeight: Kirigami.Units.iconSizes.small;
+            }
         }
 
         ToolButton {
@@ -99,6 +118,7 @@ ColumnLayout {
             icon.height: Kirigami.Units.iconSizes.small;
             ToolTip.text: qsTr("Show log");
             ToolTip.visible: hovered;
+            ToolTip.delay: Kirigami.Units.toolTipDelay;
             visible: model.online;
             onClicked: serviceProcess.showServiceLog(model.file, model.name);
         }
@@ -110,6 +130,7 @@ ColumnLayout {
             icon.height: Kirigami.Units.iconSizes.small;
             ToolTip.text: qsTr("Restart service");
             ToolTip.visible: hovered;
+            ToolTip.delay: Kirigami.Units.toolTipDelay;
             visible: model.online;
             onClicked: {
                 Service.restartService(model.file, model.name);
@@ -124,6 +145,7 @@ ColumnLayout {
             icon.height: Kirigami.Units.iconSizes.small;
             ToolTip.text: qsTr("Run shell");
             ToolTip.visible: hovered;
+            ToolTip.delay: Kirigami.Units.toolTipDelay;
             visible: model.online;
             onClicked: serviceProcess.runShell(model.file, model.name);
         }
@@ -135,6 +157,7 @@ ColumnLayout {
             icon.height: Kirigami.Units.iconSizes.small;
             ToolTip.text: qsTr("Open in browser");
             ToolTip.visible: hovered;
+            ToolTip.delay: Kirigami.Units.toolTipDelay;
             visible: model.online && model.port !== "";
             onClicked: serviceProcess.startBrowser(model.file, model.name);
         }
@@ -186,8 +209,26 @@ ColumnLayout {
 
                     ToolTip.text: modelData.host;
                     ToolTip.visible: hostMouseArea.containsMouse;
+                    ToolTip.delay: Kirigami.Units.toolTipDelay;
                 }
             }
+        }
+    }
+
+    Dialog {
+        id: deleteVolumesDialog;
+        title: qsTr("Delete Volumes");
+        modal: true;
+        anchors.centerIn: Overlay.overlay;
+        standardButtons: Dialog.Yes | Dialog.No;
+
+        Label {
+            text: qsTr("Delete all volumes for service \"%1\"?\nThis will stop the service and remove its containers and volumes.").arg(model.name);
+        }
+
+        onAccepted: {
+            serviceProcess.deleteServiceVolumes(model.file, model.name);
+            root.fastPollGeneration++;
         }
     }
 

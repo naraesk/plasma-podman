@@ -76,8 +76,9 @@ ColumnLayout {
                 icon.color: pullState === "success" ? Kirigami.Theme.positiveTextColor
                           : pullState === "failure" ? Kirigami.Theme.negativeTextColor
                           : "transparent";
-                ToolTip.text: qsTr("Pull images");
+                ToolTip.text: qsTr("Update");
                 ToolTip.visible: hovered;
+                ToolTip.delay: Kirigami.Units.toolTipDelay;
                 enabled: pullState !== "pulling";
                 onClicked: {
                     pullState = "pulling";
@@ -87,11 +88,12 @@ ColumnLayout {
 
             ToolButton {
                 id: logButton;
-                icon.name: "utilities-log-viewer";
+                icon.name: "text-x-log";
                 icon.width: Kirigami.Units.iconSizes.small;
                 icon.height: Kirigami.Units.iconSizes.small;
                 ToolTip.text: qsTr("Show log");
                 ToolTip.visible: hovered;
+                ToolTip.delay: Kirigami.Units.toolTipDelay;
                 onClicked: stackProcess.showLog(composeFile);
             }
 
@@ -102,6 +104,7 @@ ColumnLayout {
                 icon.height: Kirigami.Units.iconSizes.small;
                 ToolTip.text: qsTr("Edit file");
                 ToolTip.visible: hovered;
+                ToolTip.delay: Kirigami.Units.toolTipDelay;
                 onClicked: stackProcess.editFile(composeFile);
             }
         }
@@ -151,8 +154,21 @@ ColumnLayout {
     Process {
         id: pullProcess;
         onFinished: function(exitCode) {
+            if (exitCode === 0) {
+                recreateProcess.recreateStack(composeFile);
+            } else {
+                pullButton.pullState = "failure";
+                pullResetTimer.restart();
+            }
+        }
+    }
+
+    Process {
+        id: recreateProcess;
+        onFinished: function(exitCode) {
             pullButton.pullState = exitCode === 0 ? "success" : "failure";
             pullResetTimer.restart();
+            root.fastPollGeneration++;
         }
     }
 

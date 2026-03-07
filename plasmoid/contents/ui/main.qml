@@ -18,7 +18,6 @@
  */
 
 import QtQuick
-import QtQuick.Layouts
 import org.kde.plasma.plasmoid
 
 
