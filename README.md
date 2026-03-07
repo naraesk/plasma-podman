@@ -2,7 +2,7 @@
 
 A KDE Plasma 6 widget for controlling Podman Compose stacks from the system tray.
 
-![Screenshot](../../wiki/screenshots/ui%20v2.2.0.png)
+![Screenshot](../../wiki/screenshots/ui%20v3.0.png)
 
 ### Features
 * show status of container (with some delay)
