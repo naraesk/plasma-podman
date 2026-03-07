@@ -6,7 +6,6 @@ A KDE Plasma 6 widget for controlling Podman Compose stacks from the system tray
 
 ### Features
 * show status of container (with some delay)
-* start and stop stacks (`podman compose up` and `podman compose stop`)
 * start and stop services (`podman compose up SERVICE` and `podman compose stop SERVICE`)
 * start shell for services (`podman compose exec SERVICE sh`)
 * open public port in browser
@@ -18,7 +17,7 @@ A KDE Plasma 6 widget for controlling Podman Compose stacks from the system tray
 Please install Podman and podman-compose. Most distributions should provide packages for them. Then, run `install.sh` to install the plasmoid or run the following commands manually.
 
 1. `mkdir build && cd build`
-2. `cmake -DCMAKE_INSTALL_PREFIX=$(kf6-config --install-prefix) -DCMAKE_BUILD_TYPE=Release -DKDE_INSTALL_LIBDIR=lib -DKDE_INSTALL_USE_QT_SYS_PATHS=ON ../`
+2. ``cmake -DCMAKE_INSTALL_PREFIX=`qmake6 -query QT_INSTALL_PREFIX` -DCMAKE_BUILD_TYPE=Release -DKDE_INSTALL_LIBDIR=lib ../``
 3. `make`
 4. `sudo make install`
 5. `kquitapp6 plasmashell`
