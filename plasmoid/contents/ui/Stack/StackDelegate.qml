@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 by David Baum <david.baum@naraesk.eu>
+ * Copyright (C) 2026 by David Baum <david.baum@naraesk.eu>
  *
  * This file is part of plasma-podman.
  *
