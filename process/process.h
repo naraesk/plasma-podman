@@ -20,12 +20,13 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 
-#include <QProcess>
+#include <QObject>
+#include <QProcessEnvironment>
 #include <QString>
 #include <QStringList>
 #include <QFileSystemWatcher>
 
-class Process : public QProcess
+class Process : public QObject
 {
     Q_OBJECT
 public:
@@ -33,17 +34,22 @@ public:
     ~Process();
 
 private:
+    void runCommand(const QString &program, const QStringList &arguments);
     void runPodmanCompose(const QString &file, const QStringList &arguments);
     void runPodman(const QStringList &arguments);
+    QString queryPodman(const QStringList &arguments);
+    QString queryPodmanCompose(const QString &file, const QStringList &arguments);
     QString getContainerID(const QString &file, const QString &serviceName);
     QString parsePublishedPorts(const QString &configOutput, const QString &serviceName);
     QString parseExposedPorts(const QString &inspectOutput);
     QStringList getServiceNamedVolumes(const QString &file, const QString &serviceName);
     QString getComposeProjectName(const QString &file);
     QFileSystemWatcher m_watcher;
+    QProcessEnvironment m_environment;
 
 Q_SIGNALS:
     void composeFileChanged(const QString &path);
+    void commandFinished(int exitCode);
 
 public Q_SLOTS:
     void watchFile(const QString &path);

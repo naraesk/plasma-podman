@@ -28,6 +28,7 @@ ColumnLayout {
     id: serviceDelegate;
     visible: aVisible;
     property bool online: model.online;
+    property bool pending: false;
     property bool volumesExpanded: false;
     property var parsedVolumes: model.volumes ? JSON.parse(model.volumes) : [];
     width: parent ? parent.width : 0;
@@ -51,10 +52,19 @@ ColumnLayout {
         Switch {
             id: statusSwitch;
             checked: online;
+            enabled: !serviceDelegate.pending;
             onToggled: {
-                Service.startAndStopService(checked, model.file, model.name);
-                root.fastPollGeneration++;
+                serviceDelegate.pending = true;
+                Service.startAndStopService(toggleProcess, checked, model.file, model.name);
             }
+        }
+
+        BusyIndicator {
+            id: pendingIndicator;
+            running: serviceDelegate.pending;
+            visible: serviceDelegate.pending;
+            implicitWidth: Kirigami.Units.iconSizes.small;
+            implicitHeight: Kirigami.Units.iconSizes.small;
         }
 
         Label {
@@ -133,8 +143,8 @@ ColumnLayout {
             ToolTip.delay: Kirigami.Units.toolTipDelay;
             visible: model.online;
             onClicked: {
-                Service.restartService(model.file, model.name);
-                root.fastPollGeneration++;
+                serviceDelegate.pending = true;
+                Service.restartService(toggleProcess, model.file, model.name);
             }
         }
 
@@ -234,5 +244,18 @@ ColumnLayout {
 
     Process {
         id: serviceProcess;
+    }
+
+    // Start/stop/restart run here so the widget learns the moment podman is
+    // done, rather than waiting for the next poll.
+    Process {
+        id: toggleProcess;
+        onCommandFinished: {
+            serviceDelegate.pending = false;
+            root.fastPollGeneration++;
+            // the refresh above is synchronous, so "online" is current again;
+            // re-sync the switch in case the command failed and nothing changed
+            statusSwitch.checked = serviceDelegate.online;
+        }
     }
 }

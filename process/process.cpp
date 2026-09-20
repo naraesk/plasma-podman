@@ -23,11 +23,14 @@
 #include <QUrl>
 #include <QFileInfo>
 #include <QDir>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QProcess>
 
-Process::Process(QObject *parent) : QProcess(parent) {
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    env.insert("PODMAN_COMPOSE_WARNING_LOGS", "false");
-    setProcessEnvironment(env);
+Process::Process(QObject *parent) : QObject(parent) {
+    m_environment = QProcessEnvironment::systemEnvironment();
+    m_environment.insert("PODMAN_COMPOSE_WARNING_LOGS", "false");
 
     connect(&m_watcher, &QFileSystemWatcher::fileChanged, this, [this](const QString &path) {
         // Re-add the file since some editors replace files (remove + create)
@@ -68,32 +71,70 @@ void Process::restartService(const QString &file, const QString &serviceName) {
 QStringList Process::getServices(const QString &file) {
     QStringList arguments;
     arguments << "config" << "--services";
-    runPodmanCompose(file, arguments);
-    waitForFinished();
-    QString composeOutput(readAllStandardOutput());
+    QString composeOutput = queryPodmanCompose(file, arguments);
     return composeOutput.split("\n", Qt::SkipEmptyParts);
 }
 
 QStringList Process::getRunningServices(const QString &file) {
+    // Ask for JSON rather than a Go template: in "podman ps" templates .Labels
+    // is rendered as a flat list, so indexing it by label name fails outright.
     QStringList arguments;
     arguments << "ps"
               << "--filter" << "label=com.docker.compose.project.config_files=" + file
               << "--filter" << "status=running"
-              << "--format" << "{{index .Labels \"com.docker.compose.service\"}}";
-    runPodman(arguments);
-    waitForFinished();
-    QString podmanOutput(readAllStandardOutput());
-    return podmanOutput.split("\n", Qt::SkipEmptyParts);
+              << "--format" << "json";
+    QString podmanOutput = queryPodman(arguments);
+
+    QStringList services;
+    const QJsonArray containers = QJsonDocument::fromJson(podmanOutput.toUtf8()).array();
+    for (const QJsonValue &container : containers) {
+        const QString service = container.toObject()
+                                    .value("Labels").toObject()
+                                    .value("com.docker.compose.service").toString();
+        if (!service.isEmpty() && !services.contains(service)) {
+            services << service;
+        }
+    }
+    return services;
+}
+
+// Every command gets its own QProcess. Sharing one meant a second command
+// issued while the first was still running was silently dropped, and
+// "podman compose up -d" can easily run for a minute while it checks the
+// registry for the image.
+void Process::runCommand(const QString &program, const QStringList &arguments) {
+    auto *command = new QProcess(this);
+    command->setProcessEnvironment(m_environment);
+    connect(command, &QProcess::finished, this,
+            [this, command](int exitCode, QProcess::ExitStatus) {
+        emit commandFinished(exitCode);
+        command->deleteLater();
+    });
+    command->start(program, arguments);
 }
 
 void Process::runPodmanCompose(const QString &file, const QStringList &arguments) {
     QStringList allArguments;
     allArguments << "compose" << "-f" << file << arguments;
-    start("podman", allArguments);
+    runCommand("podman", allArguments);
 }
 
 void Process::runPodman(const QStringList &arguments) {
-    start("podman", arguments);
+    runCommand("podman", arguments);
+}
+
+QString Process::queryPodman(const QStringList &arguments) {
+    QProcess query;
+    query.setProcessEnvironment(m_environment);
+    query.start("podman", arguments);
+    query.waitForFinished();
+    return QString::fromUtf8(query.readAllStandardOutput());
+}
+
+QString Process::queryPodmanCompose(const QString &file, const QStringList &arguments) {
+    QStringList allArguments;
+    allArguments << "compose" << "-f" << file << arguments;
+    return queryPodman(allArguments);
 }
 
 void Process::showLog(const QString &file) {
@@ -107,7 +148,7 @@ void Process::showLog(const QString &file) {
               << "-f" << file
               << "logs" << "-f";
     arguments << services;
-    start("konsole", arguments);
+    runCommand("konsole", arguments);
 }
 
 void Process::showServiceLog(const QString &file, const QString &serviceName) {
@@ -118,7 +159,7 @@ void Process::showServiceLog(const QString &file, const QString &serviceName) {
               << "compose"
               << "-f" << file
               << "logs" << "-f" << serviceName;
-    start("konsole", arguments);
+    runCommand("konsole", arguments);
 }
 
 void Process::runShell(const QString &file, const QString &serviceName) {
@@ -131,7 +172,7 @@ void Process::runShell(const QString &file, const QString &serviceName) {
               << "exec"
               << serviceName
               << "sh";
-    start("konsole", arguments);
+    runCommand("konsole", arguments);
 }
 
 void Process::startBrowser(const QString &file, const QString &serviceName) {
@@ -151,9 +192,7 @@ QString Process::getContainerID(const QString &file, const QString &serviceName)
               << "--filter" << "label=com.docker.compose.project.config_files=" + file
               << "--filter" << "label=com.docker.compose.service=" + serviceName
               << "--filter" << "status=running";
-    runPodman(arguments);
-    waitForFinished();
-    QString podmanOutput(readAllStandardOutput());
+    QString podmanOutput = queryPodman(arguments);
     return podmanOutput.trimmed();
 }
 
@@ -163,9 +202,7 @@ QString Process::getPublicPorts(const QString &file, const QString &serviceName)
     if (!containerID.isEmpty()) {
         QStringList arguments;
         arguments << "port" << containerID;
-        runPodman(arguments);
-        waitForFinished();
-        QString podmanOutput(readAllStandardOutput());
+        QString podmanOutput = queryPodman(arguments);
         QStringList ports = podmanOutput.split("\n", Qt::SkipEmptyParts);
         QStringList hostPorts;
         for (const QString &port : ports) {
@@ -183,9 +220,7 @@ QString Process::getPublicPorts(const QString &file, const QString &serviceName)
     // Fallback 1: parse compose config for declared ports
     QStringList configArgs;
     configArgs << "config";
-    runPodmanCompose(file, configArgs);
-    waitForFinished();
-    QString configOutput(readAllStandardOutput());
+    QString configOutput = queryPodmanCompose(file, configArgs);
     QString result = parsePublishedPorts(configOutput, serviceName);
     if (!result.isEmpty()) {
         return result;
@@ -195,9 +230,7 @@ QString Process::getPublicPorts(const QString &file, const QString &serviceName)
     if (!containerID.isEmpty()) {
         QStringList inspectArgs;
         inspectArgs << "inspect" << "--format" << "{{json .Config.ExposedPorts}}" << containerID;
-        runPodman(inspectArgs);
-        waitForFinished();
-        QString inspectOutput(readAllStandardOutput());
+        QString inspectOutput = queryPodman(inspectArgs);
         result = parseExposedPorts(inspectOutput.trimmed());
     }
     return result;
@@ -300,9 +333,7 @@ void Process::recreateStack(const QString &file) {
 QString Process::getServiceImage(const QString &file, const QString &serviceName) {
     QStringList configArgs;
     configArgs << "config";
-    runPodmanCompose(file, configArgs);
-    waitForFinished();
-    QString configOutput(readAllStandardOutput());
+    QString configOutput = queryPodmanCompose(file, configArgs);
 
     QStringList lines = configOutput.split("\n");
     bool inService = false;
@@ -349,9 +380,7 @@ void Process::openDirectory(const QString &path) {
 QStringList Process::getServiceVolumes(const QString &file, const QString &serviceName) {
     QStringList configArgs;
     configArgs << "config";
-    runPodmanCompose(file, configArgs);
-    waitForFinished();
-    QString configOutput(readAllStandardOutput());
+    QString configOutput = queryPodmanCompose(file, configArgs);
 
     QStringList lines = configOutput.split("\n");
     QStringList volumes;
@@ -500,9 +529,7 @@ QStringList Process::getServiceVolumes(const QString &file, const QString &servi
 QString Process::getComposeProjectName(const QString &file) {
     QStringList configArgs;
     configArgs << "config";
-    runPodmanCompose(file, configArgs);
-    waitForFinished();
-    QString configOutput(readAllStandardOutput());
+    QString configOutput = queryPodmanCompose(file, configArgs);
 
     QStringList lines = configOutput.split("\n");
     for (const QString &line : lines) {
@@ -523,9 +550,7 @@ QString Process::getComposeProjectName(const QString &file) {
 QStringList Process::getServiceNamedVolumes(const QString &file, const QString &serviceName) {
     QStringList configArgs;
     configArgs << "config";
-    runPodmanCompose(file, configArgs);
-    waitForFinished();
-    QString configOutput(readAllStandardOutput());
+    QString configOutput = queryPodmanCompose(file, configArgs);
 
     QStringList lines = configOutput.split("\n");
     QStringList namedVolumes;
@@ -630,20 +655,17 @@ void Process::deleteServiceVolumes(const QString &file, const QString &serviceNa
     // Stop the service
     QStringList stopArgs;
     stopArgs << "stop" << serviceName;
-    runPodmanCompose(file, stopArgs);
-    waitForFinished();
+    queryPodmanCompose(file, stopArgs);
 
     // Remove the container
     QStringList rmArgs;
     rmArgs << "rm" << "-f" << serviceName;
-    runPodmanCompose(file, rmArgs);
-    waitForFinished();
+    queryPodmanCompose(file, rmArgs);
 
     // Remove each named volume
     for (const QString &vol : namedVolumes) {
         QStringList volArgs;
         volArgs << "volume" << "rm" << "-f" << projectName + "_" + vol;
-        runPodman(volArgs);
-        waitForFinished();
+        queryPodman(volArgs);
     }
 }

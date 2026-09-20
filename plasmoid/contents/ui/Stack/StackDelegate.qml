@@ -142,8 +142,11 @@ ColumnLayout {
     Connections {
         target: root;
         function onFastPollGenerationChanged() {
+            // refresh right away, then keep watching for a while: a container
+            // can take a moment to actually come up after podman returns
+            Stack.updateSection(composeFile);
             fastPollTimer.remainingTicks = 10;
-            fastPollTimer.running = true;
+            fastPollTimer.restart();
         }
     }
 
@@ -153,7 +156,7 @@ ColumnLayout {
 
     Process {
         id: pullProcess;
-        onFinished: function(exitCode) {
+        onCommandFinished: function(exitCode) {
             if (exitCode === 0) {
                 recreateProcess.recreateStack(composeFile);
             } else {
@@ -165,7 +168,7 @@ ColumnLayout {
 
     Process {
         id: recreateProcess;
-        onFinished: function(exitCode) {
+        onCommandFinished: function(exitCode) {
             pullButton.pullState = exitCode === 0 ? "success" : "failure";
             pullResetTimer.restart();
             root.fastPollGeneration++;

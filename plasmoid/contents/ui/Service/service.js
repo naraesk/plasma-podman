@@ -17,22 +17,22 @@
  * along with plasma-docker.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-function startAndStopService(status, file, name){
+function startAndStopService(process, status, file, name){
     if (status) {
-        startService(file, name);
+        startService(process, file, name);
     } else {
-        stopService(file, name);
+        stopService(process, file, name);
     }
 }
 
-function startService(file, name) {
+function startService(process, file, name) {
     process.startService(file, name);
 }
 
-function stopService(file, name) {
+function stopService(process, file, name) {
     process.stopService(file, name);
 }
 
-function restartService(file, name) {
+function restartService(process, file, name) {
     process.restartService(file, name);
 }
