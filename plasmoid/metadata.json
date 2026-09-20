@@ -12,7 +12,7 @@
         ],
         "Category": "Multimedia",
         "License": "GPL",
-        "Version": "3.0.0",
+        "Version": "3.1.0",
         "Website": "https://github.com/naraesk/plasma-docker"
     },
     "KPackageStructure": "Plasma/Applet",

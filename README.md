@@ -2,15 +2,18 @@
 
 A KDE Plasma 6 widget for controlling Podman Compose stacks from the system tray.
 
-![Screenshot](../../wiki/screenshots/ui%20v3.0.png)
+![Screenshot](../../wiki/screenshots/ui%20v3.1.png)
 
 ### Features
-* show status of container (with some delay)
-* start and stop services (`podman compose up SERVICE` and `podman compose stop SERVICE`)
+* show status of services, updated as soon as Podman is done starting or stopping them
+* start and stop services (`podman compose up -d SERVICE` and `podman compose stop SERVICE`)
+* restart services (`podman compose restart SERVICE`)
+* update a stack: pull images and recreate it (`podman compose pull` and `podman compose up -d --force-recreate`)
 * start shell for services (`podman compose exec SERVICE sh`)
 * open public port in browser
+* list the volumes of a service, open their host directory, or delete them
 * edit compose file in default text editor
-* show log files (`podman compose logs`)
+* show log files for a whole stack or a single service (`podman compose logs -f`)
 
 ## Installation
 
